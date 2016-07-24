@@ -1,8 +1,13 @@
 const { Schema } = Mongoose;
 
 const repoSchema = new Schema({
-  url: String,
-  tags: Array,
+  name: String,
+  tags: [
+    {
+      type: Mongoose.Schema.ObjectId,
+      ref: 'Tag',
+    },
+  ],
 });
 
 export default Mongoose.model('Repo', repoSchema);

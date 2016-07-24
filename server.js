@@ -2,12 +2,15 @@ import Express from 'express';
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
 import bodyParser from 'body-parser';
+import invariant from 'invariant';
+import _ from 'lodash';
 
 Promise.promisifyAll(mongoose);
 
 // global stuffs
 global.Promise = Promise;
 global.Mongoose = mongoose;
+global._ = _;
 
 // models
 global.Tag = require('./models/tag').default;
@@ -28,27 +31,119 @@ app.get('/', (req, res) => {
     });
 });
 
-app.post('/saveTag', (req, res) => {
-  const data = req.body || {};
-  const tagName = data.name;
+app.get('/getRepo', (req, res) => {
+  const query = req.query || {};
+  const tag = query.tag;
 
-  if (!tagName) {
-    res.status(401).json({
-      errorString: 'Name is missing',
-    });
-    return;
-  }
+  Tag
+    .find({ name: tag })
+    .populate('repos')
+    .exec((err, t) => {
+      if (err) {
+        return Promise.reject(err);
+      }
 
-  const tag = new Tag();
-  tag.name = tagName;
-
-  tag.saveAsync()
+      return Promise.resolve(t);
+    })
+    .then(tags => (
+      _.first(tags) || { repos: [] }
+    ))
     .then(results => {
-      res.send(results);
+      const getTagFromId = (id) => (
+        Tag
+          .findOne({ _id: id })
+          .populate('tags')
+          .exec((err, arrTags) => {
+            if (err) {
+              return Promise.reject(err);
+            }
+
+            return Promise.resolve(arrTags);
+          })
+      );
+
+      const populateRepo = (repo) => (
+        Promise.props({
+          name: Promise.resolve(repo.name),
+          tags: Promise.all(repo.tags.map(getTagFromId)),
+        })
+      );
+
+      return Promise.all(results.repos.map(r => populateRepo(r)));
+    })
+    .then((results) => {
+      res.status(200).json({ data: results });
       return results;
     })
     .catch(err => {
-      res.send(`${err}`);
+      res.status(500).json({ errorMessage: err.toString() });
+    });
+});
+
+app.post('/save', (req, res) => {
+  const data = req.body || {};
+  const repoName = data.name || '';
+  const tags = data.tags || [];
+
+  const repo = new Repo();
+  repo.name = repoName;
+
+  Promise.resolve()
+    .then(() => {
+      invariant(repoName, 'Name is missing');
+      return true;
+    })
+    .then(() => {
+      invariant(tags.length > 0, 'No tags?');
+      return true;
+    })
+    .then(() => {
+      const findTag = tagName => (
+        Tag
+        .findAsync({ name: tagName })
+        .then(foundTags => {
+          if (foundTags.length === 0) {
+            const newTag = new Tag();
+            newTag.name = tagName;
+            return newTag.saveAsync();
+          }
+
+          const firstRepo = _.first(foundTags);
+          return firstRepo;
+        })
+        .then(tag => {
+          tag.repos.push(repo._id); // eslint-disable-line
+          return tag.saveAsync();
+        })
+      );
+
+      const promises = _.reduce(tags, (acc, t) => {
+        acc[t] = findTag(t.toLowerCase()); // eslint-disable-line
+        return acc;
+      }, {});
+
+      // console.log(promises);
+
+      return Promise.props(promises);
+    })
+    .then(foundTags => {
+      console.log(foundTags);
+      repo.tags = _.reduce(foundTags, (acc, t) => {
+        acc.push(t._id); // eslint-disable-line
+        return acc;
+      }, []);
+      return repo.saveAsync();
+    })
+    .then(result => {
+      res.status(200).json({
+        repo: result,
+      });
+      return result;
+    })
+    .catch(err => {
+      res.status(401).json({
+        errorMessage: err.toString(),
+      });
     });
 });
 
