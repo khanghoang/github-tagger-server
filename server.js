@@ -33,24 +33,28 @@ app.get('/', (req, res) => {
 
 app.get('/getRepo', (req, res) => {
   const query = req.query || {};
-  const tag = query.tag;
+  let tags = query.tags || [];
+  tags = tags.split(',')
+    .map(t => t.trim())
+    .filter(t => t !== '');
 
-  Tag
-    .find({ name: tag })
-    .populate('repos')
-    .exec((err, t) => {
-      if (err) {
-        return Promise.reject(err);
-      }
+  const getRepoByTag = (tag) => (
+    Tag
+      .find({ name: tag })
+      .populate('repos')
+      .exec((err, t) => {
+        if (err) {
+          return Promise.reject(err);
+        }
 
-      return Promise.resolve(t);
-    })
-    .then(tags => (
-      _.first(tags) || { repos: [] }
-    ))
-    .then(results => {
-      const getTagFromId = (id) => (
-        Tag
+        return Promise.resolve(t);
+      })
+      .then(foundTags => (
+        _.first(foundTags) || { repos: [] }
+      ))
+      .then(results => {
+        const getTagFromId = (id) => (
+          Tag
           .findOne({ _id: id })
           .populate('tags')
           .exec((err, arrTags) => {
@@ -60,23 +64,28 @@ app.get('/getRepo', (req, res) => {
 
             return Promise.resolve(arrTags);
           })
-      );
+        );
 
-      const populateRepo = (repo) => (
-        Promise.props({
-          name: Promise.resolve(repo.name),
-          tags: Promise.all(repo.tags.map(getTagFromId)),
-        })
-      );
+        const populateRepo = (repo) => (
+          Promise.props({
+            name: Promise.resolve(repo.name),
+            tags: Promise.all(repo.tags.map(getTagFromId)),
+          })
+        );
 
-      return Promise.all(results.repos.map(r => populateRepo(r)));
-    })
+        return Promise.all(results.repos.map(r => populateRepo(r)));
+      })
+  );
+
+  return Promise.all(tags.map(t => getRepoByTag(t)))
+    .then(_.flatten)
+    .then(repos => _.unionBy(repos, 'name'))
     .then((results) => {
       res.status(200).json({ data: results });
       return results;
     })
     .catch(err => {
-      res.status(500).json({ errorMessage: err.toString() });
+      res.status(500).json({ errorMessage: err });
     });
 });
 
@@ -122,12 +131,9 @@ app.post('/save', (req, res) => {
         return acc;
       }, {});
 
-      // console.log(promises);
-
       return Promise.props(promises);
     })
     .then(foundTags => {
-      console.log(foundTags);
       repo.tags = _.reduce(foundTags, (acc, t) => {
         acc.push(t._id); // eslint-disable-line
         return acc;
