@@ -92,7 +92,14 @@ app.get('/getRepo', (req, res) => {
 app.post('/save', (req, res) => {
   const data = req.body || {};
   const repoName = data.name || '';
-  const tags = data.tags || [];
+
+  let tags = data.tags || [];
+  if (!Array.isArray(tags)) {
+    // single value
+    tags = [tags];
+  }
+
+  tags = tags.filter(t => t.trim().toLowerCase() !== '');
 
   const repo = new Repo();
   repo.name = repoName;
@@ -133,6 +140,7 @@ app.post('/save', (req, res) => {
 
       return Promise.props(promises);
     })
+
     .then(foundTags => {
       repo.tags = _.reduce(foundTags, (acc, t) => {
         acc.push(t._id); // eslint-disable-line
@@ -140,12 +148,25 @@ app.post('/save', (req, res) => {
       }, []);
       return repo.saveAsync();
     })
+    .then(foundRepo => (
+      Repo
+      .findOne({ _id: foundRepo })
+      .populate('tags')
+      .exec((err, result) => {
+        if (err) {
+          return Promise.reject(err);
+        }
+
+        return Promise.resolve(result);
+      })
+    ))
     .then(result => {
       res.status(200).json({
         repo: result,
       });
       return result;
     })
+
     .catch(err => {
       res.status(401).json({
         errorMessage: err.toString(),
