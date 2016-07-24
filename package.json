@@ -1,0 +1,29 @@
+{
+  "name": "git-tagger-server",
+  "version": "0.0.1",
+  "description": "Server for git tagger",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/khanghoang/github-tagger-server.git"
+  },
+  "keywords": [
+    "nodejs",
+    "es6",
+    "expressjs"
+  ],
+  "author": "hoangtrieukhang@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/khanghoang/github-tagger-server/issues"
+  },
+  "homepage": "https://github.com/khanghoang/github-tagger-server#readme",
+  "dependencies": {
+    "babel-preset-es2015": "^6.9.0",
+    "babel-register": "^6.11.5",
+    "express": "^4.14.0"
+  }
+}
