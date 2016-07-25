@@ -103,13 +103,10 @@ app.post('/save', (req, res) => {
   const data = req.body || {};
   const repoName = data.name || '';
 
-  let tags = data.tags || [];
-  if (!Array.isArray(tags)) {
-    // single value
-    tags = [tags];
-  }
-
-  tags = tags.filter(t => t.trim().toLowerCase() !== '');
+  let { tags: tags = '' } = req.data;
+  tags = tags.split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(t => t !== '');
 
   const repo = new Repo();
   repo.name = repoName;
