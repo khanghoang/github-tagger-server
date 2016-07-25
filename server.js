@@ -4,6 +4,11 @@ import Promise from 'bluebird';
 import bodyParser from 'body-parser';
 import invariant from 'invariant';
 import _ from 'lodash';
+import {
+  SUCCESS,
+  BAD_REQUEST,
+  SERVER_ERROR,
+} from './errorCodes';
 
 Promise.promisifyAll(mongoose);
 
@@ -38,8 +43,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/getRepo', (req, res) => {
-  const query = req.query || {};
-  let tags = query.tags || [];
+  let { tags: tags = '' } = req.query;
   tags = tags.split(',')
     .map(t => t.trim())
     .filter(t => t !== '');
@@ -87,11 +91,11 @@ app.get('/getRepo', (req, res) => {
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
     .then((results) => {
-      res.status(200).json({ data: results });
+      res.status(SUCCESS).json({ data: results });
       return results;
     })
     .catch(err => {
-      res.status(500).json({ errorMessage: err });
+      res.status(SERVER_ERROR).json({ errorMessage: err.toString() });
     });
 });
 
@@ -167,14 +171,14 @@ app.post('/save', (req, res) => {
       })
     ))
     .then(result => {
-      res.status(200).json({
+      res.status(SUCCESS).json({
         repo: result,
       });
       return result;
     })
 
     .catch(err => {
-      res.status(401).json({
+      res.status(BAD_REQUEST).json({
         errorMessage: err.toString(),
       });
     });
