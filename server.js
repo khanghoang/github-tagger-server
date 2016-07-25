@@ -100,10 +100,7 @@ app.get('/getRepo', (req, res) => {
 });
 
 app.post('/save', (req, res) => {
-  const data = req.body || {};
-  const repoName = data.name || '';
-
-  let { tags: tags = '' } = req.data;
+  let { tags: tags = '', name: repoName = '' } = req.body; // eslint-disable-line
   tags = tags.split(',')
     .map(t => t.trim().toLowerCase())
     .filter(t => t !== '');
