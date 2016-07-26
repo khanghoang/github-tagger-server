@@ -5,10 +5,28 @@ const userSchema = new Schema({
     type: String,
   },
 
-  emai: {
+  githubID: {
     type: String,
-    unique: true,
     required: true,
+  },
+
+  githubToken: {
+    type: String,
+    required: true,
+  },
+
+  profile: {
+    name: {
+      type: String,
+    },
+    picture: {
+      type: String,
+    },
+    email: {
+      type: String,
+      unique: true,
+      required: true,
+    },
   },
 });
 

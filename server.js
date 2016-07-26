@@ -4,6 +4,19 @@ import Promise from 'bluebird';
 import bodyParser from 'body-parser';
 import invariant from 'invariant';
 import _ from 'lodash';
+import logger from 'morgan';
+import compression from 'compression';
+import expressValidator from 'express-validator';
+import session from 'express-session';
+import mongoStore from 'connect-mongo';
+import path from 'path';
+import dotenv from 'dotenv';
+import passport from 'passport';
+
+dotenv.load({ path: '.env.dev' });
+
+require('./configPassport');
+
 import {
   SUCCESS,
   BAD_REQUEST,
@@ -24,8 +37,29 @@ global.User = require('./models/user').default;
 
 const app = new Express();
 
+const MongoStore = mongoStore(session);
+
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+app.use(compression());
+app.use(expressValidator());
+app.use(logger('dev'));
+
+app.use(session({
+  resave: true,
+  saveUninitialized: true,
+  secret: process.env.SESSION_SECRET,
+  store: new MongoStore({
+    url: process.env.MONGO_URI,
+    autoReconnect: true,
+  }),
+}));
+
 app.use(bodyParser({ extended: false }));
 app.use(bodyParser.json());
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -179,7 +213,19 @@ app.post('/save', (req, res) => {
     });
 });
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://localhost/test';
+app.get('/auth/github', passport.authenticate('github'));
+app.get('/auth/github/callback',
+  passport.authenticate('github',
+    {
+      failureRedirect: '/login',
+    }
+  ),
+(req, res) => {
+  res.redirect(req.session.returnTo || '/');
+}
+);
+
+const mongoUri = process.env.MONGO_URI;
 mongoose.connect(mongoUri);
 
 const port = process.env.PORT || 3333;
