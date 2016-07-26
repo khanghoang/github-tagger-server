@@ -20,6 +20,7 @@ global._ = _;
 // models
 global.Tag = require('./models/tag').default;
 global.Repo = require('./models/repo').default;
+global.User = require('./models/user').default;
 
 const app = new Express();
 
