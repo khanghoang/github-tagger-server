@@ -21,9 +21,6 @@ passport.use(new GitHubStrategy({
   if (req.user) {
     User.findOne({ github: profile.id }, (err, existingUser) => {
       if (existingUser) {
-        req.flash('errors',
-          { msg: `There is already a GitHub account that belongs to you.
-          Sign in with that account or delete it, then link it with your current account.` });
         done(err);
       } else {
         User.findById(req.user.id, (err, user) => {
@@ -34,7 +31,6 @@ passport.use(new GitHubStrategy({
           user.profile.email = user.profile.email || profile._json.email;
           user.profile.email = profile._json.email;
           user.save((err) => {
-            req.flash('info', { msg: 'GitHub account has been linked.' });
             done(err, user);
           });
         });

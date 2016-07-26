@@ -79,6 +79,7 @@ app.get('/', (req, res) => {
 
 app.get('/getRepo', (req, res) => {
   let { tags: tags = '' } = req.query;
+
   tags = tags.split(',')
     .map(t => t.trim())
     .filter(t => t !== '');
@@ -122,7 +123,17 @@ app.get('/getRepo', (req, res) => {
       })
   );
 
-  return Promise.all(tags.map(t => getRepoByTag(t)))
+  return Promise.resolve()
+    .then(() => {
+      invariant(req.user, 'Login required!!!');
+      return true;
+    })
+    .then(() => {
+      if (tags.length > 0) {
+        return Promise.all(tags.map(t => getRepoByTag(t)));
+      }
+      return Repo.findAsync({ user: req.user._id }); // eslint-disable-line
+    })
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
     .then((results) => {
@@ -185,6 +196,7 @@ app.post('/save', (req, res) => {
         acc.push(t._id); // eslint-disable-line
         return acc;
       }, []);
+      repo.user = req.user._id; // eslint-disable-line
       return repo.saveAsync();
     })
     .then(foundRepo => (
