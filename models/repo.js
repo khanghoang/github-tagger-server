@@ -8,6 +8,10 @@ const repoSchema = new Schema({
       ref: 'Tag',
     },
   ],
+  user: {
+    type: Mongoose.Schema.ObjectId,
+    ref: 'User',
+  },
 });
 
 export default Mongoose.model('Repo', repoSchema);
