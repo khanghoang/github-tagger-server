@@ -1,5 +1,4 @@
 import passport from 'passport';
-const OAuth2Strategy = require('passport-oauth').OAuth2Strategy;
 import { Strategy as GitHubStrategy } from 'passport-github';
 
 passport.serializeUser((user, done) => {
@@ -15,7 +14,7 @@ passport.deserializeUser((id, done) => {
 passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_ID,
   clientSecret: process.env.GITHUB_SECRET,
-  callbackURL: '/auth/github/callback',
+  callbackURL: process.env.REDIRECT_URL,
   passReqToCallback: true,
 }, (req, accessToken, refreshToken, profile, done) => {
   if (req.user) {

@@ -13,6 +13,11 @@ import path from 'path';
 import dotenv from 'dotenv';
 import passport from 'passport';
 
+Promise.config({
+  // Enable cancellation
+  cancellation: true,
+});
+
 dotenv.load({ path: '.env.dev' });
 
 require('./configPassport');
@@ -123,10 +128,15 @@ app.get('/getRepo', (req, res) => {
       })
   );
 
-  return Promise.resolve()
+  const p = Promise.resolve()
     .then(() => {
       invariant(req.user, 'Login required!!!');
       return true;
+    })
+    .catch(err => {
+      res.status(400).json({ errorMessage: err.toString() });
+      p.cancel();
+      return;
     })
     .then(() => {
       if (tags.length > 0) {
@@ -143,6 +153,7 @@ app.get('/getRepo', (req, res) => {
     .catch(err => {
       res.status(SERVER_ERROR).json({ errorMessage: err.toString() });
     });
+  return p;
 });
 
 app.post('/save', (req, res) => {
