@@ -45,6 +45,7 @@ const app = new Express();
 const MongoStore = mongoStore(session);
 
 app.set('views', path.join(__dirname, 'views'));
+app.use('/static', Express.static(`${__dirname}/assets`));
 app.set('view engine', 'jade');
 app.use(compression());
 app.use(expressValidator());
