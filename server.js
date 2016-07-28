@@ -165,7 +165,15 @@ app.post('/save', (req, res) => {
   const repo = new Repo();
   repo.name = repoName;
 
-  Promise.resolve()
+  const p = Promise.resolve()
+    .then(() => {
+      invariant(req.user, 'Login required');
+      return true;
+    })
+    .catch((err) => {
+      res.status(BAD_REQUEST).json({ errorMessage: err.toString() });
+      p.cancel();
+    })
     .then(() => {
       invariant(repoName, 'Name is missing');
       return true;
