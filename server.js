@@ -143,7 +143,14 @@ app.get('/getRepo', (req, res) => {
       if (tags.length > 0) {
         return Promise.all(tags.map(t => getRepoByTag(t)));
       }
-      return Repo.findAsync({ user: req.user._id }); // eslint-disable-line
+      return Repo.find({ user: req.user._id }) // eslint-disable-line
+        .populate('tags')
+        .exec((repos, err) => {
+          if (err) {
+            return Promise.reject(err);
+          }
+          return Promise.resolve(repos);
+        });
     })
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
