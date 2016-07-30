@@ -125,7 +125,7 @@ app.get('/getRepo', (req, res) => {
           })
         );
 
-        return Promise.all(results.repos.map(r => populateRepo(r)));
+        return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString()).map(r => populateRepo(r)));
       })
   );
 
@@ -143,13 +143,14 @@ app.get('/getRepo', (req, res) => {
       if (tags.length > 0) {
         return Promise.all(tags.map(t => getRepoByTag(t)));
       }
-      return Repo.find({ user: req.user._id }) // eslint-disable-line
+
+      return Repo.find({ user: Mongoose.Types.ObjectId(req.user._id) }) // eslint-disable-line
         .populate('tags')
-        .exec((repos, err) => {
+        .exec((err, repos) => {
           if (err) {
             return Promise.reject(err);
           }
-          return Promise.resolve(repos);
+          return Promise.resolve(repos || []);
         });
     })
     .then(_.flatten)
