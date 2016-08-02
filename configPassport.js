@@ -28,7 +28,6 @@ passport.use(new GitHubStrategy({
           user.profile.name = user.profile.name || profile.displayName;
           user.profile.picture = user.profile.picture || profile._json.avatar_url;
           user.profile.email = user.profile.email || profile._json.email;
-          user.profile.email = profile._json.email;
           user.save((err) => {
             done(err, user);
           });
@@ -40,7 +39,7 @@ passport.use(new GitHubStrategy({
       if (existingUser) {
         return done(null, existingUser);
       }
-      User.findOne({ email: profile._json.email }, (err, existingEmailUser) => {
+      User.findOne({ profile.email: profile._json.email }, (err, existingEmailUser) => {
         if (existingEmailUser) {
           req.flash('errors', { msg: 'There is already an account using this email address. Sign in to that account and link it with GitHub manually from Account Settings.' });
           done(err);
