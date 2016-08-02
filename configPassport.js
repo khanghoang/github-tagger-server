@@ -18,7 +18,7 @@ passport.use(new GitHubStrategy({
   passReqToCallback: true,
 }, (req, accessToken, refreshToken, profile, done) => {
   if (req.user) {
-    User.findOne({ github: profile.id }, (err, existingUser) => {
+    User.findOne({ githubID: profile.id }, (err, existingUser) => {
       if (existingUser) {
         done(err);
       } else {
@@ -35,11 +35,11 @@ passport.use(new GitHubStrategy({
       }
     });
   } else {
-    User.findOne({ github: profile.id }, (err, existingUser) => {
+    User.findOne({ githubID: profile.id }, (err, existingUser) => {
       if (existingUser) {
         return done(null, existingUser);
       }
-      User.findOne({ profile.email: profile._json.email }, (err, existingEmailUser) => {
+      User.findOne({ 'profile.email': profile._json.email }, (err, existingEmailUser) => {
         if (existingEmailUser) {
           req.flash('errors', { msg: 'There is already an account using this email address. Sign in to that account and link it with GitHub manually from Account Settings.' });
           done(err);
