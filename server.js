@@ -128,7 +128,8 @@ app.get('/getRepo', (req, res) => {
           })
         );
 
-        return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString()).map(r => populateRepo(r)));
+        return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString())
+          .map(r => populateRepo(r)));
       })
   );
 
