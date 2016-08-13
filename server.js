@@ -130,7 +130,6 @@ app.get('/getRepo', (req, res) => {
 
         // eslint-disable-next-line no-underscore-dangle
         return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString())
-          .sort((a, b) => (new Date(a.updatedAt) - new Date(b.updatedAt)))
           .map(r => populateRepo(r)));
       })
   );
@@ -161,6 +160,7 @@ app.get('/getRepo', (req, res) => {
     })
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
+    .then(repos => repos.sort((a, b) => (new Date(a.updatedAt) - new Date(b.updatedAt))))
     .then((results) => {
       res.status(SUCCESS).json({ data: results });
       return results;
