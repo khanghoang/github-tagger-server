@@ -2,6 +2,14 @@ const { Schema } = Mongoose;
 
 const repoSchema = new Schema({
   name: String,
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
   tags: [
     {
       type: Mongoose.Schema.ObjectId,
