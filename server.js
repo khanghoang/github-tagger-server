@@ -128,7 +128,9 @@ app.get('/getRepo', (req, res) => {
           })
         );
 
+        // eslint-disable-next-line no-underscore-dangle
         return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString())
+          .sort((a, b) => (new Date(a.updatedAt) - new Date(b.updatedAt)))
           .map(r => populateRepo(r)));
       })
   );
