@@ -1,5 +1,6 @@
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
+import { get } from 'lodash';
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -15,48 +16,23 @@ passport.use(new GitHubStrategy({
   clientID: process.env.GITHUB_ID,
   clientSecret: process.env.GITHUB_SECRET,
   callbackURL: process.env.REDIRECT_URL,
-  passReqToCallback: true,
-}, (req, accessToken, refreshToken, profile, done) => {
-  if (req.user) {
-    User.findOne({ githubID: profile.id }, (err, existingUser) => {
-      if (existingUser) {
-        done(err);
-      } else {
-        User.findById(req.user.id, (err, user) => {
-          user.githubID = profile.id;
-          user.githubToken = accessToken;
-          user.profile.name = user.profile.name || profile.displayName;
-          user.profile.picture = user.profile.picture || profile._json.avatar_url;
-          user.profile.email = user.profile.email || profile._json.email;
-          user.save((err) => {
-            done(err, user);
-          });
-        });
-      }
-    });
-  } else {
-    User.findOne({ githubID: profile.id }, (err, existingUser) => {
-      if (existingUser) {
-        return done(null, existingUser);
-      }
-      User.findOne({ 'profile.email': profile._json.email }, (err, existingEmailUser) => {
-        if (existingEmailUser) {
-          req.flash('errors', { msg: 'There is already an account using this email address. Sign in to that account and link it with GitHub manually from Account Settings.' });
-          done(err);
-        } else {
-          const user = new User();
-          user.githubID = profile.id;
-          user.githubToken = accessToken;
-          user.profile.name = user.profile.name || profile.displayName;
-          user.profile.picture = user.profile.picture || profile._json.avatar_url;
-          user.profile.email = profile._json.email;
-          user.save((err) => {
-            done(err, user);
-          });
-        }
+  scope: 'user:email',
+}, (accessToken, refreshToken, profile, done) => {
+  User.findOne({ githubID: profile.id }, (err, existingUser) => {
+    if (existingUser) {
+      done(err, existingUser);
+    } else {
+      const user = new User();
+      user.githubID = profile.id;
+      user.githubToken = accessToken;
+      user.profile.name = user.profile.name || profile.displayName;
+      user.profile.picture = user.profile.picture || profile._json.avatar_url;
+      user.profile.email = get(profile, 'emails[0].value', '');
+      user.save((err) => {
+        done(err, user);
       });
-    });
-  }
+    }
+  });
 }));
 
 export function isAuthenticated(req, res, next) {
