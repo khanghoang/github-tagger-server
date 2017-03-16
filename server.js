@@ -272,9 +272,9 @@ app.get('/auth/github/callback',
       failureRedirect: '/login',
     }
   ),
-(req, res) => {
-  res.redirect(req.session.returnTo || '/');
-}
+  (req, res) => {
+    res.redirect(req.session.returnTo || '/');
+  }
 );
 
 const mongoUri = process.env.MONGO_URI;
