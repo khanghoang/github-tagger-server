@@ -39,6 +39,7 @@ global._ = _;
 global.Tag = require('./models/tag').default;
 global.Repo = require('./models/repo').default;
 global.User = require('./models/user').default;
+const Token = require('./models/token').default;
 
 const app = new Express();
 
@@ -273,7 +274,15 @@ app.get('/auth/github/callback',
     }
   ),
   (req, res) => {
-    res.redirect(req.session.returnTo || '/');
+    const token = new Token({});
+    token.user = req.user;
+    token.save(err => {
+      if (!err) {
+        res.json({
+          token,
+        });
+      }
+    });
   }
 );
 
