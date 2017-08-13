@@ -22,11 +22,7 @@ dotenv.load({ path: '.env.dev' });
 
 require('./configPassport');
 
-import {
-  SUCCESS,
-  BAD_REQUEST,
-  SERVER_ERROR,
-} from './errorCodes';
+import { SUCCESS, BAD_REQUEST, SERVER_ERROR } from './errorCodes';
 
 Promise.promisifyAll(mongoose);
 
@@ -54,22 +50,27 @@ app.use(logger('dev'));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
   next();
 });
 
-app.use(session({
-  resave: true,
-  saveUninitialized: true,
-  secret: process.env.SESSION_SECRET,
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 365,
-  },
-  store: new MongoStore({
-    url: process.env.MONGO_URI,
-    autoReconnect: true,
-  }),
-}));
+app.use(
+  session({
+    resave: true,
+    saveUninitialized: true,
+    secret: process.env.SESSION_SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 365,
+    },
+    store: new MongoStore({
+      url: process.env.MONGO_URI,
+      autoReconnect: true,
+    }),
+  })
+);
 
 app.use(bodyParser({ extended: false }));
 app.use(bodyParser.json());
@@ -79,7 +80,10 @@ app.use(passport.session());
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
   next();
 });
 
@@ -93,16 +97,22 @@ app.get('/', (req, res) => {
     });
 });
 
-app.get('/getRepo', (req, res) => {
+const requireSessionOrToken = (req, res, next) => {
+  if (req.user) {
+    next();
+  }
+
+  const middleware = passport.authenticate('bearer', { session: false });
+  middleware(req, res, next);
+};
+
+app.get('/getRepo', requireSessionOrToken, (req, res) => {
   let { tags: tags = '' } = req.query;
 
-  tags = tags.split(',')
-    .map(t => t.trim())
-    .filter(t => t !== '');
+  tags = tags.split(',').map(t => t.trim()).filter(t => t !== '');
 
-  const getRepoByTag = (tag) => (
-    Tag
-      .find({ name: tag })
+  const getRepoByTag = tag =>
+    Tag.find({ name: tag })
       .populate('repos')
       .exec((err, t) => {
         if (err) {
@@ -111,35 +121,30 @@ app.get('/getRepo', (req, res) => {
 
         return Promise.resolve(t);
       })
-      .then(foundTags => (
-        _.first(foundTags) || { repos: [] }
-      ))
+      .then(foundTags => _.first(foundTags) || { repos: [] })
       .then(results => {
-        const getTagFromId = (id) => (
-          Tag
-          .findOne({ _id: id })
-          .populate('tags')
-          .exec((err, arrTags) => {
+        const getTagFromId = id =>
+          Tag.findOne({ _id: id }).populate('tags').exec((err, arrTags) => {
             if (err) {
               return Promise.reject(err);
             }
 
             return Promise.resolve(arrTags);
-          })
-        );
+          });
 
-        const populateRepo = (repo) => (
+        const populateRepo = repo =>
           Promise.props({
             name: Promise.resolve(repo.name),
             tags: Promise.all(repo.tags.map(getTagFromId)),
-          })
-        );
+          });
 
-        // eslint-disable-next-line no-underscore-dangle
-        return Promise.all(results.repos.filter(r => r.user.toString() === req.user._id.toString())
-          .map(r => populateRepo(r)));
-      })
-  );
+        return Promise.all(
+          results.repos
+            // eslint-disable-next-line no-underscore-dangle
+            .filter(r => r.user.toString() === req.user._id.toString())
+            .map(r => populateRepo(r))
+        );
+      });
 
   const p = Promise.resolve()
     .then(() => {
@@ -167,8 +172,9 @@ app.get('/getRepo', (req, res) => {
     })
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
-    .then(repos => repos.sort((a, b) => (new Date(a.updatedAt) - new Date(b.updatedAt))))
-    .then((results) => {
+    .then(repos =>
+      repos.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)))
+    .then(results => {
       res.status(SUCCESS).json({ data: results });
       return results;
     })
@@ -178,11 +184,10 @@ app.get('/getRepo', (req, res) => {
   return p;
 });
 
-app.post('/save', (req, res) => {
+app.post('/save', requireSessionOrToken, (req, res) => {
+  console.log('req.user: ', req.user);
   let { tags: tags = '', name: repoName = '' } = req.body; // eslint-disable-line
-  tags = tags.split(',')
-    .map(t => t.trim().toLowerCase())
-    .filter(t => t !== '');
+  tags = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
 
   const repo = new Repo();
   repo.name = repoName;
@@ -192,7 +197,7 @@ app.post('/save', (req, res) => {
       invariant(req.user, 'Login required');
       return true;
     })
-    .catch((err) => {
+    .catch(err => {
       res.status(BAD_REQUEST).json({ errorMessage: err.toString() });
       p.cancel();
     })
@@ -205,60 +210,60 @@ app.post('/save', (req, res) => {
       return true;
     })
     .then(() => {
-      const findTag = tagName => (
-        Tag
-        .findAsync({ name: tagName })
-        .then(foundTags => {
-          if (foundTags.length === 0) {
-            const newTag = new Tag();
-            newTag.name = tagName;
-            return newTag.saveAsync();
-          }
+      const findTag = tagName =>
+        Tag.findAsync({ name: tagName })
+          .then(foundTags => {
+            if (foundTags.length === 0) {
+              const newTag = new Tag();
+              newTag.name = tagName;
+              return newTag.saveAsync();
+            }
 
-          const firstRepo = _.first(foundTags);
-          return firstRepo;
-        })
-        .then(tag => {
-          tag.repos.push(repo._id); // eslint-disable-line
-          return tag.saveAsync();
-        })
+            const firstRepo = _.first(foundTags);
+            return firstRepo;
+          })
+          .then(tag => {
+            tag.repos.push(repo._id); // eslint-disable-line
+            return tag.saveAsync();
+          });
+
+      const promises = _.reduce(
+        tags,
+        (acc, t) => {
+          acc[t] = findTag(t.toLowerCase()); // eslint-disable-line
+          return acc;
+        },
+        {}
       );
-
-      const promises = _.reduce(tags, (acc, t) => {
-        acc[t] = findTag(t.toLowerCase()); // eslint-disable-line
-        return acc;
-      }, {});
 
       return Promise.props(promises);
     })
-
     .then(foundTags => {
-      repo.tags = _.reduce(foundTags, (acc, t) => {
-        acc.push(t._id); // eslint-disable-line
-        return acc;
-      }, []);
+      repo.tags = _.reduce(
+        foundTags,
+        (acc, t) => {
+          acc.push(t._id); // eslint-disable-line
+          return acc;
+        },
+        []
+      );
       repo.user = req.user._id; // eslint-disable-line
       return repo.saveAsync();
     })
-    .then(foundRepo => (
-      Repo
-      .findOne({ _id: foundRepo })
-      .populate('tags')
-      .exec((err, result) => {
+    .then(foundRepo =>
+      Repo.findOne({ _id: foundRepo }).populate('tags').exec((err, result) => {
         if (err) {
           return Promise.reject(err);
         }
 
         return Promise.resolve(result);
-      })
-    ))
+      }))
     .then(result => {
       res.status(SUCCESS).json({
         repo: result,
       });
       return result;
     })
-
     .catch(err => {
       res.status(BAD_REQUEST).json({
         errorMessage: err.toString(),
@@ -267,12 +272,11 @@ app.post('/save', (req, res) => {
 });
 
 app.get('/auth/github', passport.authenticate('github'));
-app.get('/auth/github/callback',
-  passport.authenticate('github',
-    {
-      failureRedirect: '/login',
-    }
-  ),
+app.get(
+  '/auth/github/callback',
+  passport.authenticate('github', {
+    failureRedirect: '/login',
+  }),
   (req, res) => {
     const token = new Token({});
     token.user = req.user;

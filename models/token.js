@@ -1,3 +1,4 @@
+import Mongoose from 'mongoose';
 const { Schema } = Mongoose;
 
 const TokenSchema = new Schema({
