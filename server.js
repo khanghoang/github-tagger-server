@@ -106,6 +106,7 @@ app.get('/', (req, res) => {
 const requireSessionOrToken = (req, res, next) => {
   if (req.user) {
     next();
+    return;
   }
 
   const middleware = passport.authenticate('bearer', { session: false });
