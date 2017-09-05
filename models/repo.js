@@ -1,3 +1,5 @@
+import Mongoose from 'mongoose';
+
 const { Schema } = Mongoose;
 
 const repoSchema = new Schema({

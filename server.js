@@ -1,17 +1,23 @@
 import Express from 'express';
-import mongoose from 'mongoose';
+import Mongoose from 'mongoose';
 import Promise from 'bluebird';
+import _, { first } from 'lodash';
 import bodyParser from 'body-parser';
-import invariant from 'invariant';
-import _ from 'lodash';
-import logger from 'morgan';
 import compression from 'compression';
-import expressValidator from 'express-validator';
-import session from 'express-session';
-import mongoStore from 'connect-mongo';
-import path from 'path';
 import dotenv from 'dotenv';
+import expressValidator from 'express-validator';
+import fetch from 'node-fetch';
+import invariant from 'invariant';
+import logger from 'morgan';
+import mongoStore from 'connect-mongo';
 import passport from 'passport';
+import session from 'express-session';
+
+import path from 'path';
+
+import Repo from './models/repo';
+import Tag from './models/tag';
+import User from './models/user';
 
 Promise.config({
   // Enable cancellation
@@ -24,11 +30,11 @@ require('./configPassport');
 
 import { SUCCESS, BAD_REQUEST, SERVER_ERROR } from './errorCodes';
 
-Promise.promisifyAll(mongoose);
+// eslint-disable-next-line
+Promise.promisifyAll(Mongoose);
 
 // global stuffs
 global.Promise = Promise;
-global.Mongoose = mongoose;
 global._ = _;
 
 // models
@@ -173,7 +179,8 @@ app.get('/getRepo', requireSessionOrToken, (req, res) => {
     .then(_.flatten)
     .then(repos => _.unionBy(repos, 'name'))
     .then(repos =>
-      repos.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)))
+      repos.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt))
+    )
     .then(results => {
       res.status(SUCCESS).json({ data: results });
       return results;
@@ -257,7 +264,8 @@ app.post('/save', requireSessionOrToken, (req, res) => {
         }
 
         return Promise.resolve(result);
-      }))
+      })
+    )
     .then(result => {
       res.status(SUCCESS).json({
         repo: result,
@@ -290,8 +298,46 @@ app.get(
   }
 );
 
+/* login by using github token */
+// eslint-disable-next-line
+app.post('/login/github', async (req, res) => {
+  Promise.promisifyAll(Token);
+  Promise.promisifyAll(User);
+
+  const { token } = req.body;
+  const rawData = await fetch('https://api.github.com/user/emails', {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `token ${token}`,
+    },
+    method: 'GET',
+  });
+
+  const emails = await rawData.json();
+  const primaryEmail = first(emails.filter(({ primary }) => primary));
+  const getOrCreateUserByEmail = async email => {
+    const u = await User.findOneAsync({ 'profile.email': email });
+    if (u) return u;
+    const newUser = new User();
+    newUser.githubToken = token;
+    newUser.profile.name = '';
+    newUser.profile.picture = '';
+    newUser.profile.email = email;
+    await newUser.saveAsync();
+  };
+
+  const user = await getOrCreateUserByEmail(primaryEmail.email);
+  const newToken = new Token({
+    user,
+  });
+
+  await newToken.saveAsync();
+  return res.json(newToken);
+});
+
 const mongoUri = process.env.MONGO_URI;
-mongoose.connect(mongoUri);
+// eslint-disable-next-lint
+Mongoose.connect(mongoUri);
 
 const port = process.env.PORT || 3333;
 
