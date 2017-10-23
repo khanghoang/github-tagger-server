@@ -18,6 +18,7 @@ import path from 'path';
 import Repo from './models/repo';
 import Tag from './models/tag';
 import User from './models/user';
+import graphqlHTTP from './graphql';
 
 Promise.config({
   // Enable cancellation
@@ -298,6 +299,8 @@ app.get(
     });
   }
 );
+
+app.use(graphqlHTTP);
 
 /* login by using github token */
 // eslint-disable-next-line
